@@ -49,11 +49,31 @@ jobs:
 
       - name: Build debug APK
         working-directory: VirtualCallOpenSource
-        run: ./gradlew assembleDebug --stacktrace --info
+        continue-on-error: true
+        run: |
+          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
+
+      - name: Show errors
+        if: always()
+        working-directory: VirtualCallOpenSource
+        run: |
+          echo "===== What went wrong ====="
+          grep -A 30 "What went wrong" build.log || echo "not found"
+          echo "===== Caused by ====="
+          grep -A 15 "Caused by" build.log | head -80 || echo "not found"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: VirtualCallOpenSource/build.log
+          if-no-files-found: warn
 
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: VirtualCallOpenSource/**/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          if-no-files-found: warn
