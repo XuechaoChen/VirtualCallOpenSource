@@ -1,9 +1,7 @@
 name: Build VirtualCallOpenSource with AndroidDependencyLib
 
 on:
-  # 允许手动触发
   workflow_dispatch:
-  # 推送到 main 分支时自动触发
   push:
     branches: [ main ]
 
@@ -11,47 +9,48 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xmx2g"
+
     steps:
-      # 1. 将依赖库 checkout 到 workspace 根目录下的 AndroidDependencyLib
       - name: Checkout AndroidDependencyLib
         uses: actions/checkout@v4
         with:
           repository: XuechaoChen/AndroidDependencyLib
           path: AndroidDependencyLib
 
-      # 2. 将主项目 checkout 到 workspace 根目录下的 VirtualCallOpenSource
       - name: Checkout VirtualCallOpenSource
         uses: actions/checkout@v4
         with:
           repository: XuechaoChen/VirtualCallOpenSource
           path: VirtualCallOpenSource
 
-      # 3. 设置 JDK 17（Temurin 发行版）
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 4. 修复 Gradle wrapper 版本，避免 Groovy Java7 初始化错误
-      #    将 Gradle 升级到 7.5.1，兼容 JDK 17 且支持较新的 AGP
+      - name: Clean Gradle daemon cache
+        run: |
+          rm -rf ~/.gradle/daemon
+          rm -rf ~/.gradle/caches
+          cd VirtualCallOpenSource && ./gradlew --stop || true
+
       - name: Upgrade Gradle wrapper to 7.5.1
         working-directory: VirtualCallOpenSource
         run: |
           sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-7.5.1-bin.zip|' gradle/wrapper/gradle-wrapper.properties
           cat gradle/wrapper/gradle-wrapper.properties
 
-      # 5. 赋予 gradlew 执行权限
       - name: Grant execute permission for gradlew
         working-directory: VirtualCallOpenSource
         run: chmod +x gradlew
 
-      # 6. 执行构建（debug 版，无需签名配置）
       - name: Build debug APK
         working-directory: VirtualCallOpenSource
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --info
 
-      # 7. 上传生成的 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
