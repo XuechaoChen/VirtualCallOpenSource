@@ -1,26 +1,45 @@
-name: Android CI
+name: Build App with AndroidDependencyLib
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    branches: [ main ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: gradle
+      # 1. 把两个仓库都 checkout 到 workspace 根目录下，成为同级目录
+      - name: Checkout AndroidDependencyLib
+        uses: actions/checkout@v4
+        with:
+          repository: XuechaoChen/AndroidDependencyLib   # 注意改成你自己的 fork
+          path: AndroidDependencyLib
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
+      - name: Checkout VirtualCallOpenSource
+        uses: actions/checkout@v4
+        with:
+          repository: XuechaoChen/VirtualCallOpenSource   # 注意改成你自己的 fork
+          path: VirtualCallOpenSource
+
+      # 2. 配置 JDK
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 3. 进入主项目目录，执行构建
+      - name: Build APK
+        working-directory: VirtualCallOpenSource
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      # 4. 上传生成的 APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: VirtualCallOpenSource/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
